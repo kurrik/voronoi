@@ -17,6 +17,7 @@ package voronoi
 import (
 	"container/heap"
 	"testing"
+	"fmt"
 )
 
 func TestEventQueue(t *testing.T) {
@@ -81,11 +82,32 @@ func TestEventList(t *testing.T) {
 func TestGetEdges(t *testing.T) {
 	v := Voronoi{}
 	ver := &Vertices{
-		Pt(1,1),
-		Pt(2,2),
+		Pt(1,2),
+		Pt(2,3),
 		Pt(5,1),
 	}
-	e := v.GetEdges(ver, 10, 10)
-	t.Logf("Edges: %v", e)
+	/*
+	Corresponds to:
+	2.9,1.1  ->  1.59572236146443, -4.11711055414228
+	2.9,1.1  -> -0.902590083911664, 4.90259008391166
+	2.9,1.1  ->  5.88299708308615,  5.57449562462923
+	*/
+	edges := v.GetEdges(ver, 15, 15)
+	fmt.Printf("x = []\n")
+	fmt.Printf("y = []\n")
+	fmt.Printf("vx = []\n")
+	fmt.Printf("vy = []\n")
+	for _, p := range *ver {
+		fmt.Printf("x = [x,%v]\ny = [y, %v]\n", p.X, p.Y)
+	}
+	for _, e := range edges {
+		//m := (e.End.Y - e.Start.Y) / (e.End.X - e.Start.X)
+		//b := e.Start.Y - m * e.Start.X
+		//fmt.Printf("y = \n%v * x + %v\n", m, b)
+		fmt.Printf("vx = [vx,%v]\nvy = [vy,%v]\n", e.Start.X, e.Start.Y)
+		fmt.Printf("vx = [vx,%v]\nvy = [vy,%v]\n", e.End.X, e.End.Y)
+		t.Logf("Start: %v,%v End; %v,%v", e.Start.X, e.Start.Y, e.End.X, e.End.Y)
+	}
+	fmt.Printf("plot(x,y,'r+',vx,vy,'b-'); axis equal\n")
 	t.Fatal("Not implemented")
 }

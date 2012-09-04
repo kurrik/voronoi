@@ -17,6 +17,7 @@ package voronoi
 import (
 	"container/heap"
 	"fmt"
+	"math"
 )
 
 type Point struct {
@@ -39,6 +40,29 @@ type Edge struct {
 	F         float32
 	G         float32
 	Neighbor  *Edge
+}
+
+func NewEdge(s *Point, a *Point, b *Point) *Edge {
+	e := &Edge{
+		Start:    s,
+		Left:     a,
+		Right:    b,
+		Neighbor: nil,
+		End:      nil,
+	}
+	e.F = (b.X - a.X) / (a.Y - b.Y)
+	e.G = s.Y - e.F*s.X
+	/*
+	if math.IsInf(float64(e.F), -1) {
+		e.Direction = Pt(1, 0)
+	} else if math.IsInf(float64(e.F), 1) {
+		e.Direction = Pt(-1, 0)
+	} else {
+	*/
+	e.Direction = Pt(b.Y-a.Y, -(b.X - a.X))
+	//}
+	fmt.Printf("Start: %v Left: %v Right: %v F: %v G: %v\n", e.Start, e.Left, e.Right, e.F, e.G)
+	return e
 }
 
 type Edges []*Edge
@@ -130,6 +154,99 @@ type Parabola struct {
 	right  *Parabola
 }
 
+func NewParabola() *Parabola {
+	return &Parabola{
+		Site:   nil,
+		IsLeaf: false,
+		Edge:   nil,
+		Event:  nil,
+		Parent: nil,
+		left:   nil,
+		right:  nil,
+	}
+}
+
+func NewLeafParabola(s *Point) *Parabola {
+	p := NewParabola()
+	p.Site = s
+	p.IsLeaf = true
+	return p
+}
+
+func (p *Parabola) Left() *Parabola {
+	return p.left
+}
+
+func (p *Parabola) Right() *Parabola {
+	return p.right
+}
+
+func (p *Parabola) SetLeft(c *Parabola) {
+	p.left = c
+	c.Parent = p
+}
+
+func (p *Parabola) SetRight(c *Parabola) {
+	p.right = c
+	c.Parent = p
+}
+
+func (p *Parabola) GetLeft() *Parabola {
+	return p.GetLeftParent().GetLeftChild()
+}
+
+func (p *Parabola) GetRight() *Parabola {
+	return p.GetRightParent().GetRightChild()
+}
+
+func (p *Parabola) GetLeftParent() *Parabola {
+	par := p.Parent
+	plast := p
+	for par.Left() == plast {
+		if par.Parent == nil {
+			return nil
+		}
+		plast = par
+		par = par.Parent
+	}
+	return par
+}
+
+func (p *Parabola) GetRightParent() *Parabola {
+	par := p.Parent
+	plast := p
+	for par.Right() == plast {
+		if par.Parent == nil {
+			return nil
+		}
+		plast = par
+		par = par.Parent
+	}
+	return par
+}
+
+func (p *Parabola) GetLeftChild() *Parabola {
+	if p == nil {
+		return nil
+	}
+	par := p.Left()
+	for !par.IsLeaf {
+		par = par.Right()
+	}
+	return par
+}
+
+func (p *Parabola) GetRightChild() *Parabola {
+	if p == nil {
+		return nil
+	}
+	par := p.Right()
+	for !par.IsLeaf {
+		par = par.Left()
+	}
+	return par
+}
+
 type Voronoi struct {
 	Edges    Edges
 	Vertices Vertices
@@ -170,7 +287,7 @@ func (v *Voronoi) GetEdges(places *Vertices, w float32, h float32) Edges {
 		} else {
 			v.removeParabola(e)
 		}
-		fmt.Println(v.Y)
+		fmt.Printf("v.Y: %v\n", v.Y)
 	}
 
 	v.finishEdge(v.Root)
@@ -185,10 +302,291 @@ func (v *Voronoi) GetEdges(places *Vertices, w float32, h float32) Edges {
 }
 
 func (v *Voronoi) insertParabola(p *Point) {
+	if v.Root == nil {
+		v.Root = NewLeafParabola(p)
+		return
+	}
+	if v.Root.IsLeaf && v.Root.Site.Y-p.Y < 1 {
+		fp := v.Root.Site
+		v.Root.IsLeaf = false
+		v.Root.SetLeft(NewLeafParabola(fp))
+		v.Root.SetRight(NewLeafParabola(p))
+		s := Pt((p.X+fp.X)/2.0, v.Height)
+		v.points = append(v.points, s)
+		if p.X > fp.X {
+			v.Root.Edge = NewEdge(s, fp, p)
+		} else {
+			v.Root.Edge = NewEdge(s, p, fp)
+		}
+		v.Edges = append(v.Edges, v.Root.Edge)
+		return
+	}
+
+	par := v.getParabolaByX(p.X)
+	if par.Event != nil {
+		v.del = append(v.del, par.Event)
+		par.Event = nil
+	}
+
+	start := Pt(p.X, v.getY(par.Site, p.X))
+	v.points = append(v.points, start)
+
+	el := NewEdge(start, par.Site, p)
+	er := NewEdge(start, p, par.Site)
+
+	el.Neighbor = er
+	v.Edges = append(v.Edges, el)
+
+	par.Edge = er
+	par.IsLeaf = false
+
+	p0 := NewLeafParabola(par.Site)
+	p1 := NewLeafParabola(p)
+	p2 := NewLeafParabola(par.Site)
+
+	par.SetRight(p2)
+	par.SetLeft(NewParabola())
+	par.Left().Edge = el
+	par.Left().SetLeft(p0)
+	par.Left().SetRight(p1)
+
+	v.checkCircle(p0)
+	v.checkCircle(p2)
 }
 
 func (v *Voronoi) removeParabola(e *Event) {
+	var (
+		p1 = e.Arch
+		xl = p1.GetLeftParent()
+		xr = p1.GetRightParent()
+		p0 = xl.GetLeftChild()
+		p2 = xr.GetRightChild()
+	)
+	if p0.Event != nil {
+		v.del = append(EventList{p0.Event}, v.del...)
+		p0.Event = nil
+	}
+	if p2.Event != nil {
+		v.del = append(EventList{p2.Event}, v.del...)
+		p2.Event = nil
+	}
+
+	p := Pt(e.Point.X, v.getY(p1.Site, e.Point.X))
+	v.points = append(v.points, p)
+
+	xl.Edge.End = p
+	xr.Edge.End = p
+
+	var (
+		higher *Parabola
+		par    *Parabola = p1
+	)
+	for par != v.Root {
+		par = par.Parent
+		if par == xl {
+			higher = xl
+		}
+		if par == xr {
+			higher = xr
+		}
+	}
+
+	higher.Edge = NewEdge(p, p0.Site, p2.Site)
+	v.Edges = append(v.Edges, higher.Edge)
+
+	gparent := p1.Parent.Parent
+	if p1.Parent.Left() == p1 {
+		if gparent.Left() == p1.Parent {
+			gparent.SetLeft(p1.Parent.Right())
+		}
+		if gparent.Right() == p1.Parent {
+			gparent.SetRight(p1.Parent.Right())
+		}
+	} else {
+		if gparent.Left() == p1.Parent {
+			gparent.SetLeft(p1.Parent.Left())
+		}
+		if gparent.Right() == p1.Parent {
+			gparent.SetRight(p1.Parent.Left())
+		}
+	}
+
+	p1.Parent = nil
+
+	v.checkCircle(p0)
+	v.checkCircle(p2)
 }
 
-func (v *Voronoi) finishEdge(p *Parabola) {
+func (v *Voronoi) getEdgeIntersection(a *Edge, b *Edge) *Point {
+	var (
+		x = (b.G - a.G) / (a.F - b.F)
+		y = a.F*x + a.G
+	)
+
+	/*
+	if math.IsInf(float64(b.F), 0) {
+		x = b.Start.X
+		y = a.F * x + a.G
+	}
+	if math.IsInf(float64(a.F), 0) {
+		x = a.Start.X
+		y = b.F * x + b.G
+	}
+	*/
+
+	if (x-a.Start.X)/a.Direction.X < 0 {
+		return nil
+	}
+	if (y-a.Start.Y)/a.Direction.Y < 0 {
+		return nil
+	}
+	if (x-b.Start.X)/b.Direction.X < 0 {
+		return nil
+	}
+	if (y-b.Start.Y)/b.Direction.Y < 0 {
+		return nil
+	}
+	p := Pt(x, y)
+	fmt.Printf("a.Start: %v,%v\n", a.Start.X, a.Start.Y)
+	if a.End != nil {
+		fmt.Printf("a.End: %v,%v\n", a.End.X, a.End.Y)
+	}
+	fmt.Printf("b.Start: %v,%v\n", b.Start.X, b.Start.Y)
+	if b.End != nil {
+		fmt.Printf("b.End: %v,%v\n", b.End.X, b.End.Y)
+	}
+	fmt.Printf("b.G: %v a.G: %v a.F: %v b.F: %v\n", b.G, a.G, a.F, b.F)
+	fmt.Printf("x: %v y: %v\n", x, y)
+	v.points = append(v.points, p)
+	return p
+}
+
+func (v *Voronoi) checkCircle(b *Parabola) {
+	var (
+		lp = b.GetLeftParent()
+		rp = b.GetRightParent()
+		a  = lp.GetLeftChild()
+		c  = rp.GetRightChild()
+	)
+	if a == nil || c == nil || a.Site == c.Site {
+		return
+	}
+	s := v.getEdgeIntersection(lp.Edge, rp.Edge)
+	if s == nil {
+		return
+	}
+	var (
+		dx = a.Site.X - s.X
+		dy = a.Site.Y - s.Y
+		d  = float32(math.Sqrt(float64((dx * dx) + (dy * dy))))
+	)
+	fmt.Printf("a.Site.X: %v s.X: %v\n", a.Site.X, s.X)
+	fmt.Printf("a.Site.Y: %v s.Y: %v\n", a.Site.Y, s.Y)
+	fmt.Printf("dx: %v, dy: %v, d: %v\n", dx, dy, d)
+	if s.Y-d >= v.Y {
+		return
+	}
+	e := NewEvent(Pt(s.X, s.Y-d), false)
+	v.points = append(v.points, e.Point)
+	b.Event = e
+	e.Arch = b
+	heap.Push(&v.queue, e)
+}
+
+func (v *Voronoi) getParabolaByX(xx float32) *Parabola {
+	par := v.Root
+	var x float32 = 0.0
+	for !par.IsLeaf {
+		x = v.getXOfEdge(par, v.Y)
+		if x > xx {
+			par = par.Left()
+		} else {
+			par = par.Right()
+		}
+	}
+	return par
+}
+
+func (v *Voronoi) getY(p *Point, x float32) float32 {
+	var (
+		dp = 2 * (p.Y - v.Y)
+		a1 = 1 / dp
+		b1 = -2 * p.X / dp
+		c1 = v.Y + dp/4 + p.X*p.X/dp
+	)
+	return a1*x*x + b1*x + c1
+}
+
+func (v *Voronoi) finishEdge(n *Parabola) {
+	if n.IsLeaf {
+		return
+	}
+	var mx float32
+	if n.Edge.Direction.X > 0.0 {
+		if v.Width > n.Edge.Start.X+10 {
+			mx = v.Width
+		} else {
+			mx = n.Edge.Start.X + 10
+		}
+	} else {
+		if 0.0 < n.Edge.Start.X-10 {
+			mx = 0.0
+		} else {
+			mx = n.Edge.Start.X - 10
+		}
+	}
+	var end *Point
+	/*
+	if math.IsInf(float64(n.Edge.F), 1) {
+		end = Pt(mx, v.Height)
+	} else if math.IsInf(float64(n.Edge.F), -1) {
+		end = Pt(mx, 0)
+	} else {
+	*/
+	end = Pt(mx, mx*n.Edge.F+n.Edge.G)
+	//}
+	n.Edge.End = end
+	v.points = append(v.points, end)
+	v.finishEdge(n.Left())
+	v.finishEdge(n.Right())
+}
+
+func (v *Voronoi) getXOfEdge(par *Parabola, y float32) float32 {
+	var (
+		left  = par.GetLeftChild()
+		right = par.GetRightChild()
+		p     = left.Site
+		r     = right.Site
+		dp    = 2.0 * (p.Y - y)
+		a1    = 1.0 / dp
+		b1    = -2.0 * p.X / dp
+		c1    = y + dp/4 + p.X*p.X/dp
+	)
+	dp = 2.0 * (r.Y - y)
+	var (
+		a2   = 1.0 / dp
+		b2   = -2.0 * r.X / dp
+		c2   = v.Y + dp/4 + r.X*r.X/dp
+		a    = a1 - a2
+		b    = b1 - b2
+		c    = c1 - c2
+		disc = b*b - 4*a*c
+		x1   = (-b + float32(math.Sqrt(float64(disc)))) / (2 * a)
+		x2   = (-b - float32(math.Sqrt(float64(disc)))) / (2 * a)
+	)
+	var ry float32
+	if p.Y < r.Y {
+		if x1 > x2 {
+			ry = x1
+		} else {
+			ry = x2
+		}
+	} else {
+		if x1 < x2 {
+			ry = x1
+		} else {
+			ry = x2
+		}
+	}
+	return ry
 }
