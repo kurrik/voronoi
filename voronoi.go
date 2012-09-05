@@ -16,7 +16,6 @@ package voronoi
 
 import (
 	"container/heap"
-	"fmt"
 	"math"
 )
 
@@ -42,6 +41,10 @@ type Edge struct {
 	Neighbor  *Edge
 }
 
+func Ed(x1 float32, y1 float32, x2 float32, y2 float32) *Edge {
+	return &Edge{Start: Pt(x1, y1), End: Pt(x2, y2)}
+}
+
 func NewEdge(s *Point, a *Point, b *Point) *Edge {
 	e := &Edge{
 		Start:    s,
@@ -52,16 +55,14 @@ func NewEdge(s *Point, a *Point, b *Point) *Edge {
 	}
 	e.F = (b.X - a.X) / (a.Y - b.Y)
 	e.G = s.Y - e.F*s.X
-	/*
+
 	if math.IsInf(float64(e.F), -1) {
 		e.Direction = Pt(1, 0)
 	} else if math.IsInf(float64(e.F), 1) {
 		e.Direction = Pt(-1, 0)
 	} else {
-	*/
-	e.Direction = Pt(b.Y-a.Y, -(b.X - a.X))
-	//}
-	fmt.Printf("Start: %v Left: %v Right: %v F: %v G: %v\n", e.Start, e.Left, e.Right, e.F, e.G)
+		e.Direction = Pt(b.Y-a.Y, -(b.X - a.X))
+	}
 	return e
 }
 
@@ -119,8 +120,8 @@ func (q EventQueue) Len() int {
 }
 
 func (q EventQueue) Less(i int, j int) bool {
-	// Sorted by Y ascending.
-	return q[i].Y < q[j].Y
+	// Sorted by Y descending.
+	return q[i].Y > q[j].Y
 }
 
 func (q EventQueue) Swap(i int, j int) {
@@ -287,7 +288,6 @@ func (v *Voronoi) GetEdges(places *Vertices, w float32, h float32) Edges {
 		} else {
 			v.removeParabola(e)
 		}
-		fmt.Printf("v.Y: %v\n", v.Y)
 	}
 
 	v.finishEdge(v.Root)
@@ -423,16 +423,14 @@ func (v *Voronoi) getEdgeIntersection(a *Edge, b *Edge) *Point {
 		y = a.F*x + a.G
 	)
 
-	/*
 	if math.IsInf(float64(b.F), 0) {
 		x = b.Start.X
-		y = a.F * x + a.G
+		y = a.F*x + a.G
 	}
 	if math.IsInf(float64(a.F), 0) {
 		x = a.Start.X
-		y = b.F * x + b.G
+		y = b.F*x + b.G
 	}
-	*/
 
 	if (x-a.Start.X)/a.Direction.X < 0 {
 		return nil
@@ -447,16 +445,6 @@ func (v *Voronoi) getEdgeIntersection(a *Edge, b *Edge) *Point {
 		return nil
 	}
 	p := Pt(x, y)
-	fmt.Printf("a.Start: %v,%v\n", a.Start.X, a.Start.Y)
-	if a.End != nil {
-		fmt.Printf("a.End: %v,%v\n", a.End.X, a.End.Y)
-	}
-	fmt.Printf("b.Start: %v,%v\n", b.Start.X, b.Start.Y)
-	if b.End != nil {
-		fmt.Printf("b.End: %v,%v\n", b.End.X, b.End.Y)
-	}
-	fmt.Printf("b.G: %v a.G: %v a.F: %v b.F: %v\n", b.G, a.G, a.F, b.F)
-	fmt.Printf("x: %v y: %v\n", x, y)
 	v.points = append(v.points, p)
 	return p
 }
@@ -480,9 +468,6 @@ func (v *Voronoi) checkCircle(b *Parabola) {
 		dy = a.Site.Y - s.Y
 		d  = float32(math.Sqrt(float64((dx * dx) + (dy * dy))))
 	)
-	fmt.Printf("a.Site.X: %v s.X: %v\n", a.Site.X, s.X)
-	fmt.Printf("a.Site.Y: %v s.Y: %v\n", a.Site.Y, s.Y)
-	fmt.Printf("dx: %v, dy: %v, d: %v\n", dx, dy, d)
 	if s.Y-d >= v.Y {
 		return
 	}
@@ -536,15 +521,13 @@ func (v *Voronoi) finishEdge(n *Parabola) {
 		}
 	}
 	var end *Point
-	/*
 	if math.IsInf(float64(n.Edge.F), 1) {
 		end = Pt(mx, v.Height)
 	} else if math.IsInf(float64(n.Edge.F), -1) {
 		end = Pt(mx, 0)
 	} else {
-	*/
-	end = Pt(mx, mx*n.Edge.F+n.Edge.G)
-	//}
+		end = Pt(mx, mx*n.Edge.F+n.Edge.G)
+	}
 	n.Edge.End = end
 	v.points = append(v.points, end)
 	v.finishEdge(n.Left())

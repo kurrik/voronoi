@@ -17,7 +17,6 @@ package voronoi
 import (
 	"container/heap"
 	"testing"
-	"fmt"
 )
 
 func TestEventQueue(t *testing.T) {
@@ -29,20 +28,20 @@ func TestEventQueue(t *testing.T) {
 
 	var e *Event
 	e = heap.Pop(&queue).(*Event)
-	if e.Y != 1 {
-		t.Fatalf("Wanted priority 1, got %v", e.Y)
-	}
-	e = heap.Pop(&queue).(*Event)
-	if e.Y != 3 {
-		t.Fatalf("Wanted priority 3, got %v", e.Y)
+	if e.Y != 7 {
+		t.Fatalf("Wanted priority 7, got %v", e.Y)
 	}
 	e = heap.Pop(&queue).(*Event)
 	if e.Y != 5 {
 		t.Fatalf("Wanted priority 5, got %v", e.Y)
 	}
 	e = heap.Pop(&queue).(*Event)
-	if e.Y != 7 {
-		t.Fatalf("Wanted priority 7, got %v", e.Y)
+	if e.Y != 3 {
+		t.Fatalf("Wanted priority 3, got %v", e.Y)
+	}
+	e = heap.Pop(&queue).(*Event)
+	if e.Y != 1 {
+		t.Fatalf("Wanted priority 1, got %v", e.Y)
 	}
 }
 
@@ -79,35 +78,57 @@ func TestEventList(t *testing.T) {
 	}
 }
 
+type Testing testing.T
+
+func (t *Testing) CompareEdges(edges Edges, valid Edges) {
+	for i, e := range edges {
+		if i >= len(valid) {
+			t.Fatalf("Edges are different lengths")
+		}
+		var (
+			es  = e.Start
+			ee  = e.End
+			vs  = valid[i].Start
+			ve  = valid[i].End
+			msg = "Pair %v: got %v,%v expected %v,%v"
+		)
+		if es.X != vs.X || es.Y != vs.Y {
+			t.Errorf(msg, i+1, es.X, es.Y, vs.X, vs.Y)
+		}
+		if ee.X != ve.X || ee.Y != ve.Y {
+			t.Errorf(msg, i+1, ee.X, ee.Y, ve.X, ve.Y)
+		}
+	}
+}
+
 func TestGetEdges(t *testing.T) {
 	v := Voronoi{}
 	ver := &Vertices{
-		Pt(1,2),
-		Pt(2,3),
-		Pt(5,1),
+		Pt(1, 2),
+		Pt(2, 3),
+		Pt(5, 1),
 	}
-	/*
-	Corresponds to:
-	2.9,1.1  ->  1.59572236146443, -4.11711055414228
-	2.9,1.1  -> -0.902590083911664, 4.90259008391166
-	2.9,1.1  ->  5.88299708308615,  5.57449562462923
-	*/
-	edges := v.GetEdges(ver, 15, 15)
-	fmt.Printf("x = []\n")
-	fmt.Printf("y = []\n")
-	fmt.Printf("vx = []\n")
-	fmt.Printf("vy = []\n")
-	for _, p := range *ver {
-		fmt.Printf("x = [x,%v]\ny = [y, %v]\n", p.X, p.Y)
+	edges := v.GetEdges(ver, 10, 10)
+	valid := Edges{
+		Ed(2.9, 1.0999999, -9, 13),
+		Ed(15, 19.25, 2.9, 1.0999999),
+		Ed(2.9, 1.0999999, -7.1, -38.9),
 	}
-	for _, e := range edges {
-		//m := (e.End.Y - e.Start.Y) / (e.End.X - e.Start.X)
-		//b := e.Start.Y - m * e.Start.X
-		//fmt.Printf("y = \n%v * x + %v\n", m, b)
-		fmt.Printf("vx = [vx,%v]\nvy = [vy,%v]\n", e.Start.X, e.Start.Y)
-		fmt.Printf("vx = [vx,%v]\nvy = [vy,%v]\n", e.End.X, e.End.Y)
-		t.Logf("Start: %v,%v End; %v,%v", e.Start.X, e.Start.Y, e.End.X, e.End.Y)
+	(*Testing)(t).CompareEdges(edges, valid)
+}
+
+func TestGetVerticalEdges(t *testing.T) {
+	v := Voronoi{}
+	ver := &Vertices{
+		Pt(1, 1),
+		Pt(2, 3),
+		Pt(5, 1),
 	}
-	fmt.Printf("plot(x,y,'r+',vx,vy,'b-'); axis equal\n")
-	t.Fatal("Not implemented")
+	edges := v.GetEdges(ver, 10, 10)
+	valid := Edges{
+		Ed(3.0, 1.25, -9, 7.25),
+		Ed(15, 19.25, 3.0, 1.25),
+		Ed(3.0, 1.25, -7, 10),
+	}
+	(*Testing)(t).CompareEdges(edges, valid)
 }
