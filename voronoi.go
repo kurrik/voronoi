@@ -21,11 +21,11 @@ import (
 )
 
 type Point struct {
-	X float32
-	Y float32
+	X float64
+	Y float64
 }
 
-func Pt(x float32, y float32) *Point {
+func Pt(x float64, y float64) *Point {
 	return &Point{X: x, Y: y}
 }
 
@@ -37,12 +37,12 @@ type Edge struct {
 	Direction *Point
 	Left      *Point
 	Right     *Point
-	F         float32
-	G         float32
+	F         float64
+	G         float64
 	Neighbor  *Edge
 }
 
-func Ed(x1 float32, y1 float32, x2 float32, y2 float32) *Edge {
+func Ed(x1 float64, y1 float64, x2 float64, y2 float64) *Edge {
 	return &Edge{Start: Pt(x1, y1), End: Pt(x2, y2)}
 }
 
@@ -72,7 +72,7 @@ type Edges []*Edge
 type Event struct {
 	Point   *Point
 	IsPlace bool
-	Y       float32
+	Y       float64
 	Arch    *Parabola
 }
 
@@ -269,16 +269,16 @@ type Voronoi struct {
 	Edges    Edges
 	Vertices Vertices
 	Places   *Vertices
-	Width    float32
-	Height   float32
+	Width    float64
+	Height   float64
 	Root     *Parabola
-	Y        float32
+	Y        float64
 	del      EventList
 	points   Vertices
 	queue    EventQueue
 }
 
-func (v *Voronoi) GetEdges(places *Vertices, w float32, h float32) Edges {
+func (v *Voronoi) GetEdges(places *Vertices, w float64, h float64) Edges {
 	v.Places = places
 	v.Width = w
 	v.Height = h
@@ -483,7 +483,7 @@ func (v *Voronoi) checkCircle(b *Parabola) {
 	var (
 		dx = a.Site.X - s.X
 		dy = a.Site.Y - s.Y
-		d  = float32(math.Sqrt(float64((dx * dx) + (dy * dy))))
+		d  = float64(math.Sqrt(float64((dx * dx) + (dy * dy))))
 	)
 	if s.Y-d >= v.Y {
 		return
@@ -495,9 +495,9 @@ func (v *Voronoi) checkCircle(b *Parabola) {
 	heap.Push(&v.queue, e)
 }
 
-func (v *Voronoi) getParabolaByX(xx float32) *Parabola {
+func (v *Voronoi) getParabolaByX(xx float64) *Parabola {
 	par := v.Root
-	var x float32 = 0.0
+	var x float64 = 0.0
 	for !par.IsLeaf {
 		x = v.getXOfEdge(par, v.Y)
 		if x > xx {
@@ -509,7 +509,7 @@ func (v *Voronoi) getParabolaByX(xx float32) *Parabola {
 	return par
 }
 
-func (v *Voronoi) getY(p *Point, x float32) float32 {
+func (v *Voronoi) getY(p *Point, x float64) float64 {
 	var (
 		dp = 2 * (p.Y - v.Y)
 		a1 = 1 / dp
@@ -523,7 +523,7 @@ func (v *Voronoi) finishEdge(n *Parabola) {
 	if n.IsLeaf {
 		return
 	}
-	var mx float32
+	var mx float64
 	if n.Edge.Direction.X > 0.0 {
 		if v.Width > n.Edge.Start.X+10 {
 			mx = v.Width
@@ -551,7 +551,7 @@ func (v *Voronoi) finishEdge(n *Parabola) {
 	v.finishEdge(n.Right())
 }
 
-func (v *Voronoi) getXOfEdge(par *Parabola, y float32) float32 {
+func (v *Voronoi) getXOfEdge(par *Parabola, y float64) float64 {
 	var (
 		left  = par.GetLeftChild()
 		right = par.GetRightChild()
@@ -571,10 +571,10 @@ func (v *Voronoi) getXOfEdge(par *Parabola, y float32) float32 {
 		b    = b1 - b2
 		c    = c1 - c2
 		disc = b*b - 4*a*c
-		x1   = (-b + float32(math.Sqrt(float64(disc)))) / (2 * a)
-		x2   = (-b - float32(math.Sqrt(float64(disc)))) / (2 * a)
+		x1   = (-b + float64(math.Sqrt(float64(disc)))) / (2 * a)
+		x2   = (-b - float64(math.Sqrt(float64(disc)))) / (2 * a)
 	)
-	var ry float32
+	var ry float64
 	if p.Y < r.Y {
 		if x1 > x2 {
 			ry = x1

@@ -44,18 +44,18 @@ const TEMPLATE = `<?xml version="1.0" ?>
 </svg>`
 
 type SVG struct {
-	Width       float32
-	Height      float32
+	Width       float64
+	Height      float64
 	Edges       voronoi.Edges
 	Vertices    voronoi.Vertices
 	Title       string
 	Description string
-	StrokeWidth float32
-	PointRadius float32
+	StrokeWidth float64
+	PointRadius float64
 }
 
 func main() {
-	pts := 100
+	pts := 600
 	vor := voronoi.Voronoi{}
 	svg := SVG{
 		Title:       "Voronoi diagram",
@@ -69,8 +69,8 @@ func main() {
 	rnd := rand.New(rand.NewSource(7584))
 	for i := 0; i < pts; i++ {
 		var (
-			x = rnd.Float32() * svg.Width
-			y = rnd.Float32() * svg.Height
+			x = rnd.Float64() * svg.Width
+			y = rnd.Float64() * svg.Height
 		)
 		str := fmt.Sprintf("Point at %v,%v\n", x, y)
 		os.Stderr.Write([]byte(str))
