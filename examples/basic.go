@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Outputs an SVG image of random points and the corresponding Voronoi edges.
+// Run with:
+//   go run examples/basic.go > ~/Desktop/test.svg
+
 package main
 
 import (
 	".."
 	"fmt"
+	"math/rand"
 	"os"
 	"text/template"
-	"math/rand"
 )
 
 const TEMPLATE = `<?xml version="1.0" ?>
@@ -51,18 +55,18 @@ type SVG struct {
 }
 
 func main() {
-	pts := 5
+	pts := 100
 	vor := voronoi.Voronoi{}
 	svg := SVG{
 		Title:       "Voronoi diagram",
 		Description: "Edges and points",
-		Width:       300,
-		Height:      300,
+		Width:       500,
+		Height:      500,
 		StrokeWidth: 1,
 		PointRadius: 1,
 		Vertices:    make([]*voronoi.Point, pts),
 	}
-	rnd := rand.New(rand.NewSource(1000))
+	rnd := rand.New(rand.NewSource(7584))
 	for i := 0; i < pts; i++ {
 		var (
 			x = rnd.Float32() * svg.Width

@@ -16,6 +16,7 @@ package voronoi
 
 import (
 	"container/heap"
+	"fmt"
 	"math"
 )
 
@@ -131,6 +132,11 @@ func (q EventQueue) Swap(i int, j int) {
 func (q *EventQueue) Push(x interface{}) {
 	a := *q
 	n := len(a)
+	if n+1 > cap(a) {
+		c := make(EventQueue, len(a), 2*cap(a)+1)
+		copy(c, a)
+		a = c
+	}
 	a = a[0 : n+1]
 	event := x.(*Event)
 	a[n] = event
@@ -198,6 +204,17 @@ func (p *Parabola) GetLeft() *Parabola {
 
 func (p *Parabola) GetRight() *Parabola {
 	return p.GetRightParent().GetRightChild()
+}
+
+func (p *Parabola) Print() {
+	fmt.Printf("Parabola: %p\n", &p)
+	fmt.Printf("  Site:   %v\n", p.Site)
+	fmt.Printf("  IsLeaf: %v\n", p.IsLeaf)
+	fmt.Printf("  Event:  %v\n", p.Event)
+	fmt.Printf("  Edge:   %v\n", p.Edge)
+	fmt.Printf("  Parent: %v\n", p.Parent)
+	fmt.Printf("  Left:   %v\n", p.left)
+	fmt.Printf("  Right:  %v\n", p.right)
 }
 
 func (p *Parabola) GetLeftParent() *Parabola {
@@ -269,17 +286,17 @@ func (v *Voronoi) GetEdges(places *Vertices, w float32, h float32) Edges {
 	v.Edges = make(Edges, 0, 0)
 	v.points = make(Vertices, 0, 0)
 
-	v.queue = make(EventQueue, 0, len(*places))
+	v.queue = make(EventQueue, 0, len(*places)+1)
 	for _, p := range *places {
 		heap.Push(&v.queue, NewEvent(p, true))
 	}
 
 	v.del = make(EventList, 0, 0)
 	var e *Event
-	for len(v.queue) > 0 {
+	for v.queue.Len() > 0 {
 		e = heap.Pop(&v.queue).(*Event)
 		v.Y = e.Point.Y
-		if i := v.del.Find(e); i != -1 && v.del[i] != v.del.Last() {
+		if i := v.del.Find(e); i != -1 {
 			v.del.Remove(e)
 			continue
 		}
