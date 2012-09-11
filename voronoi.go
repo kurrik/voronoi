@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// An implementation of Fortune's algorithm to get Voronoi edges for a set of
+// points.
 package voronoi
 
 import (
